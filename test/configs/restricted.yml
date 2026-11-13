@@ -1,0 +1,11 @@
+# Filesystem mode with the binary data folder on a 1 MB disk, and n8n's file
+# access restrictions pointed somewhere else.
+services:
+  n8n:
+    environment:
+      LAB_CONFIG: restricted
+      N8N_STORAGE_PATH: /lab-small
+      N8N_RESTRICT_FILE_ACCESS_TO: /home/node/allowed
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+    tmpfs:
+      - /lab-small:size=1m,uid=1000,gid=1000,mode=0700

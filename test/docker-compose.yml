@@ -1,0 +1,15 @@
+# Overlay for the end-to-end tests. Paths are relative to the repository root.
+#   npm run test:e2e
+# The tests start n8n five times on the same data volume, each time with one
+# of the files in test/configs/ on top.
+services:
+  n8n:
+    restart: "no"
+    mem_limit: 1500m
+  standin:
+    restart: "no"
+    mem_limit: 256m
+
+# Used by test/configs/readonly.yml.
+volumes:
+  readonly_store:

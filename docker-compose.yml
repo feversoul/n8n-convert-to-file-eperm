@@ -1,0 +1,39 @@
+# n8n with the lab workflows imported and active, and a stand-in for the
+# speech request and for Telegram.
+#   docker compose up -d      editor on http://localhost:5678
+# The first start imports and publishes the workflows, under a minute.
+# With no setting, n8n 2.x stores binary data on disk ("filesystem" mode),
+# under /home/node/.n8n/storage.
+
+services:
+  n8n:
+    image: ${N8N_IMAGE:-n8nio/n8n:2.43.7}
+    restart: unless-stopped
+    entrypoint: ["sh", "/bootstrap/bootstrap.sh"]
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-eperm-lab-local-key}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/bootstrap/workflows:ro
+      - ./docker/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+      - ./docker/prepare.mjs:/bootstrap/prepare.mjs:ro
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+
+  # Answers the speech request and Telegram's sendDocument. Nothing is
+  # forwarded anywhere.
+  standin:
+    image: node:22-alpine
+    restart: unless-stopped
+    command: ["node", "/app/standin.mjs"]
+    read_only: true
+    volumes:
+      - ./docker/standin.mjs:/app/standin.mjs:ro
+    ports:
+      - "${STANDIN_PORT:-8080}:8080"
+
+volumes:
+  n8n_data:

@@ -1,0 +1,129 @@
+{
+  "id": "eperm-code-binary",
+  "name": "Convert to File lab: binary set in a Code node",
+  "nodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "position": [
+        0,
+        0
+      ],
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "eperm-code-binary",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eperm/code-binary",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000022",
+      "position": [
+        220,
+        0
+      ],
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? {};\n// { \"make\": { \"field\": \"audio\", \"bytes\": 16777216 } } builds the base64 here,\n// for payloads larger than a webhook body may be.\nif (body.make) {\n  const bytes = Buffer.alloc(body.make.bytes);\n  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31 + (i >> 8)) & 255;\n  body[body.make.field] = bytes.toString('base64');\n}\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000023",
+      "position": [
+        440,
+        0
+      ],
+      "name": "Set Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: {}, binary: { data: { data: $json.audio, mimeType: $json.mimeType ?? 'application/octet-stream', fileName: $json.fileName ?? 'file' } } };"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000024",
+      "position": [
+        660,
+        0
+      ],
+      "name": "Read Back",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "data",
+        "destinationKey": "back",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000025",
+      "position": [
+        880,
+        0
+      ],
+      "name": "Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const file = $('Set Binary').first().binary.data;\nconst back = $input.first().json.back;\nreturn [{ json: {\n  fileName: file.fileName ?? null,\n  directory: file.directory ?? null,\n  fileExtension: file.fileExtension ?? null,\n  mimeType: file.mimeType ?? null,\n  fileSize: file.fileSize ?? null,\n  // 'filesystem-v2:workflows/...' when stored, null when the bytes travel in the item\n  id: file.id ?? null,\n  backLength: back.length,\n  // The stored bytes, base64. Left out when large.\n  back: back.length <= 400000 ? back : null,\n  backHead: back.slice(0, 60),\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Set Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Binary": {
+      "main": [
+        [
+          {
+            "node": "Read Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Back": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

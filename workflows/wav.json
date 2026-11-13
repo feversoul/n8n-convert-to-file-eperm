@@ -1,0 +1,159 @@
+{
+  "id": "eperm-wav",
+  "name": "Convert to File lab: add a WAV header, then convert",
+  "nodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000026",
+      "position": [
+        0,
+        0
+      ],
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "eperm-wav",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eperm/wav",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000027",
+      "position": [
+        220,
+        0
+      ],
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? {};\n// { \"make\": { \"field\": \"audio\", \"bytes\": 16777216 } } builds the base64 here,\n// for payloads larger than a webhook body may be.\nif (body.make) {\n  const bytes = Buffer.alloc(body.make.bytes);\n  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31 + (i >> 8)) & 255;\n  body[body.make.field] = bytes.toString('base64');\n}\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000028",
+      "position": [
+        440,
+        0
+      ],
+      "name": "Add WAV Header",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Where the base64 audio is. Gemini generateContent puts it in\n// candidates[0].content.parts[0].inlineData; change this line for another shape.\nconst part = $json.candidates?.[0]?.content?.parts?.[0]?.inlineData ?? { data: $json.audio, mimeType: $json.mimeType };\n\nconst bytes = Buffer.from(part.data, 'base64');\nconst isWav = bytes.length >= 12 && bytes.toString('latin1', 0, 4) === 'RIFF' && bytes.toString('latin1', 8, 12) === 'WAVE';\n\n// Gemini speech is 16-bit little-endian mono; the rate is in the MIME type\n// (\"audio/L16;codec=pcm;rate=24000\"), 24000 when it is not.\nconst rate = Number(/rate=(\\d+)/.exec(part.mimeType ?? '')?.[1] ?? 24000);\nconst channels = 1;\nconst bits = 16;\n\nlet wav = bytes;\nif (!isWav) {\n  const header = Buffer.alloc(44);\n  header.write('RIFF', 0, 'latin1');\n  header.writeUInt32LE(36 + bytes.length, 4);\n  header.write('WAVEfmt ', 8, 'latin1');\n  header.writeUInt32LE(16, 16); // size of the fmt chunk\n  header.writeUInt16LE(1, 20); // 1 = PCM\n  header.writeUInt16LE(channels, 22);\n  header.writeUInt32LE(rate, 24);\n  header.writeUInt32LE((rate * channels * bits) / 8, 28); // bytes per second\n  header.writeUInt16LE((channels * bits) / 8, 32); // bytes per sample frame\n  header.writeUInt16LE(bits, 34);\n  header.write('data', 36, 'latin1');\n  header.writeUInt32LE(bytes.length, 40);\n  wav = Buffer.concat([header, bytes]);\n}\n\nreturn { json: { wav: wav.toString('base64'), headerAdded: !isWav, sampleRate: isWav ? null : rate } };"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000029",
+      "position": [
+        660,
+        0
+      ],
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "wav",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "speech.wav",
+          "mimeType": "audio/wav"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000030",
+      "position": [
+        880,
+        0
+      ],
+      "name": "Read Back",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "data",
+        "destinationKey": "back",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000031",
+      "position": [
+        1100,
+        0
+      ],
+      "name": "Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const file = $('Convert to File').first().binary.data;\nconst back = $input.first().json.back;\nreturn [{ json: {\n  fileName: file.fileName ?? null,\n  directory: file.directory ?? null,\n  fileExtension: file.fileExtension ?? null,\n  mimeType: file.mimeType ?? null,\n  fileSize: file.fileSize ?? null,\n  // 'filesystem-v2:workflows/...' when stored, null when the bytes travel in the item\n  id: file.id ?? null,\n  backLength: back.length,\n  // The stored bytes, base64. Left out when large.\n  back: back.length <= 400000 ? back : null,\n  backHead: back.slice(0, 60),\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Add WAV Header",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add WAV Header": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Read Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Back": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

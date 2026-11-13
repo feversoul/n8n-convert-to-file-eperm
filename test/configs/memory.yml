@@ -1,0 +1,6 @@
+# Binary data stays inside the item, in memory and in the execution data.
+services:
+  n8n:
+    environment:
+      LAB_CONFIG: memory
+      N8N_DEFAULT_BINARY_DATA_MODE: default

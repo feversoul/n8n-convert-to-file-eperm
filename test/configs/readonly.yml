@@ -1,0 +1,11 @@
+# Filesystem mode with the binary data folder on a read-only mount.
+services:
+  n8n:
+    environment:
+      LAB_CONFIG: readonly
+      N8N_STORAGE_PATH: /lab-readonly
+    volumes:
+      - type: volume
+        source: readonly_store
+        target: /lab-readonly
+        read_only: true

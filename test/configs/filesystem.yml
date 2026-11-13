@@ -1,0 +1,5 @@
+# n8n as shipped: no binary data setting. In n8n 2.x that is "filesystem".
+services:
+  n8n:
+    environment:
+      LAB_CONFIG: filesystem

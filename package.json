@@ -1,0 +1,14 @@
+{
+  "name": "n8n-convert-to-file-eperm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "What makes n8n's Convert to File node (Move Base64 String to File) fail with \"Operation not permitted, make sure you have the right permissions\": every candidate cause run as a real workflow on n8n 2.43.7 and 2.47.7",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

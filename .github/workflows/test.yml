@@ -1,0 +1,24 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        n8n: ["2.43.7", "2.47.7"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Real n8n and the stand-in for the speech request and Telegram, in Docker.
+      - run: node scripts/e2e.mjs
+        env:
+          N8N_IMAGE: n8nio/n8n:${{ matrix.n8n }}

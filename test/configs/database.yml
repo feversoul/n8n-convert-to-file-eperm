@@ -1,0 +1,6 @@
+# Binary data in n8n's database (here the default SQLite file).
+services:
+  n8n:
+    environment:
+      LAB_CONFIG: database
+      N8N_DEFAULT_BINARY_DATA_MODE: database
