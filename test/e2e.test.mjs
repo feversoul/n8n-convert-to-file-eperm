@@ -135,8 +135,10 @@ function inContainer(command, { root = false } = {}) {
 }
 
 // The port can accept connections before n8n answers, and n8n serves a
-// "starting up" page first: wait for a workflow that needs no storage.
-const ready = () => until(async () => (await post('code-binary', HELLO)).status === 200, 600_000);
+// "starting up" page first (200, plain text): wait for a workflow that needs
+// no storage to answer with something else.
+const answered = async (response) => response.status === 200 && !(await response.text()).startsWith('n8n is starting up');
+const ready = () => until(async () => answered(await post('code-binary', HELLO)), 600_000);
 
 // Restarts n8n with another file from test/configs/. The data volume stays,
 // so workflows, the owner and the API key are the same.
